@@ -42,7 +42,7 @@ def evaluate(cfg):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {str(device).upper()}\n")
 
-    test_folder = os.path.join(cfg.dataset_dir, "train")
+    test_folder = os.path.join(cfg.dataset_dir, "test")
     test_graphs = utils.load_graphs(test_folder, device)
     
     if args.gnn == "eagnn":

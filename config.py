@@ -9,7 +9,7 @@ class Config:
         self.weight_decay = 1e-5
         self.num_epochs = 1000
 
-        self.dataset_dir = 'datasets/full_graph_data'
+        self.dataset_dir = 'datasets/full_graph_data_edge'
 
         self.save_dir = 'saved_models'
         self.result_dir = 'results'

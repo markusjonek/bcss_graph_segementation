@@ -13,62 +13,84 @@ class GraphSAGE(nn.Module):
         super(GraphSAGE, self).__init__()
 
         self.layers = nn.ModuleList()
-        self.batch_norms = nn.ModuleList()
 
         dims = [input_dim] + layers
 
         for i in range(1, len(dims)):
             self.layers.append(SAGEConv(dims[i-1], dims[i]))
-            self.batch_norms.append(nn.BatchNorm1d(dims[i]))
             
         self.dropout = dropout
         self.out_dim = dims[-1]  # Output dimension
 
     def forward(self, node_features, edge_index, edge_attr=None):
-        edge_index, _ = add_self_loops(edge_index, num_nodes=node_features.size(0))
+        """
+        node_features: torch.Tensor of shape [N, F]
+            N is the number of nodes
+            F is the number of node features
+            
+        edge_index: torch.Tensor of shape [2, E]
+            E is the number of edges
+            
+        edge_attr: Not used
+        
+        Returns:
+            torch.Tensor of shape [N, out_dim]
+        """
+
+        #edge_index, _ = add_self_loops(edge_index, num_nodes=node_features.size(0))
         
         x = node_features
         
-        # SAGEConv --> BatchNorm --> ReLU --> Dropout
-        for layer, batch_norm in zip(self.layers, self.batch_norms):
+        # SAGEConv --> ReLU --> Dropout
+        for layer in self.layers:
             x = layer(x, edge_index)
-            #x = batch_norm(x)
             x = F.relu(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
         
         return x
 
 
-class GraphAttention(nn.Module):
-    def __init__(self, input_dim, hidden_dims, output_dim, dropout=0.5, device='cpu'):
-        super(GraphAttention, self).__init__()
+class GAT(nn.Module):
+    def __init__(self, input_dim, layers, dropout=0.5):
+        super(GAT, self).__init__()
 
-        self.gat_convs = nn.ModuleList(
-            [GATConv(input_dim, hidden_dims[0])]
-        )
+        self.layers = nn.ModuleList()
 
-        for i in range(1, len(hidden_dims) - 1):
-            self.gat_convs.append(GATConv(hidden_dims[i-1], hidden_dims[i]))
+        dims = [input_dim] + layers
 
-        self.gat_convs.append(GATConv(hidden_dims[-1], output_dim))
+        for i in range(1, len(dims)):
+            self.layers.append(GATv2Conv(dims[i-1], dims[i]))
+            
+        self.dropout = dropout
+        self.out_dim = dims[-1]  # Output dimension
 
-        self.dropout = nn.Dropout(dropout)
-        self.device = device
-
-
-    def forward(self, node_features, edge_index):
-        node_features, edge_index = node_features.to(self.device), edge_index.to(self.device)
-
-        x = node_features
-        for layer in self.gat_convs[:-1]:
-            x = layer(x, edge_index)
-            x = F.relu(x)
-            x = self.dropout(x) 
+    def forward(self, node_features, edge_index, edge_attr=None):
+        """
+        node_features: torch.Tensor of shape [N, F]
+            N is the number of nodes
+            F is the number of node features
+            
+        edge_index: torch.Tensor of shape [2, E]
+            E is the number of edges
+            
+        edge_attr: torch.Tensor of shape [E, P]
+            P is the number of edge features
         
-        x = self.gat_convs[-1](x, edge_index)
+        Returns:
+            torch.Tensor of shape [N, out_dim]
+        """
+
+        #edge_index, _ = add_self_loops(edge_index, num_nodes=node_features.size(0))
+        
+        x = node_features
+        
+        # SAGEConv --> ReLU --> Dropout
+        for layer in self.layers:
+            x = layer(x, edge_index, edge_attr)
+            x = F.relu(x)
+            x = F.dropout(x, p=self.dropout, training=self.training)
         
         return x
-
 
 
 class EAGNN(nn.Module):
@@ -76,24 +98,35 @@ class EAGNN(nn.Module):
         super(EAGNN, self).__init__()
 
         self.layers = nn.ModuleList()
-        self.batch_norms = nn.ModuleList()        
         
         self.layers.append(EAGNNLayer(input_dim, layers[0], channel_dim))
-        self.batch_norms.append(nn.BatchNorm1d(layers[0]*channel_dim))
 
         for i in range(1, len(layers)):
             self.layers.append(EAGNNLayer(layers[i-1]*channel_dim, layers[i], channel_dim))
-            #self.batch_norms.append(nn.BatchNorm1d(layers[i]*channel_dim))
         
         self.dropout = dropout
         self.out_dim = layers[-1]  # Output dimension
 
     def forward(self, node_features, edge_index, edge_attr):
+        """
+        node_features: torch.Tensor of shape [N, F]
+            N is the number of nodes
+            F is the number of node features
+            
+        edge_index: torch.Tensor of shape [2, E]
+            E is the number of edges
+            
+        edge_attr: torch.Tensor of shape [E, P]
+            P is the number of edge features
+        
+        Returns:
+            torch.Tensor of shape [N, out_dim]
+        """
+
         x = node_features
-        # EAGNN --> BatchNorm --> ReLU --> Dropout
-        for layer, batch_norm in zip(self.layers, self.batch_norms):
+        # EAGNN --> ReLU --> Dropout
+        for layer in self.layers:
             x = layer(x, edge_index, edge_attr)
-            #x = batch_norm(x)
             x = F.relu(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
         

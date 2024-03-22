@@ -6,7 +6,7 @@ from torch_geometric.nn import MessagePassing
 
 class EAGNNLayer(MessagePassing):
     def __init__(self, input_dim, output_dim, channel_dim):
-        super(EAGNNLayer, self).__init__(aggr='add')  # Use sum aggregation.
+        super(EAGNNLayer, self).__init__(aggr=None)  # Use sum aggregation.
 
         self.input_dim = input_dim
         self.output_dim = output_dim
@@ -56,6 +56,9 @@ class EAGNNLayer(MessagePassing):
     def update(self, aggr_out):
         # aggr_out: Output of the aggregation step [N, out_channels]
         return aggr_out
+
+
+
 
     def __repr__(self):
         return f"{self.__class__.__name__}(input_dim={self.input_dim}, output_dim={self.output_dim}, channel_dim={self.channel_dim})"
